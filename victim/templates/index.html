@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مختبر XSS التعليمي — Programming & Security</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root{
+            --bg:#0a0e16;
+            --bg-soft:#0f1521;
+            --panel:#121a28;
+            --panel-line:#1f2c3f;
+            --cyan:#3dd6f5;
+            --cyan-dim:#1c4452;
+            --gold:#e8b339;
+            --text:#c9d3e0;
+            --text-bright:#eef2f7;
+            --text-dim:#6c7a8e;
+            --red:#e25c5c;
+            --green:#4fc97a;
+            --radius:14px;
+            --mono:'JetBrains Mono', monospace;
+            --sans:'IBM Plex Sans Arabic', sans-serif;
+        }
+        *{box-sizing:border-box; margin:0; padding:0;}
+        body{
+            background:var(--bg);
+            color:var(--text);
+            font-family:var(--sans);
+            line-height:1.7;
+            min-height:100vh;
+            padding:40px 20px;
+        }
+        ::selection{background:var(--cyan); color:#04141a;}
+
+        .noise{
+            position:fixed; inset:0; pointer-events:none; z-index:1;
+            background-image:
+              radial-gradient(circle at 20% 20%, rgba(61,214,245,0.05), transparent 40%),
+              radial-gradient(circle at 85% 75%, rgba(232,179,57,0.04), transparent 45%);
+        }
+
+        .container{
+            max-width:900px; margin:0 auto; position:relative; z-index:2;
+        }
+
+        /* ===== Header ===== */
+        .lab-header{
+            display:flex; align-items:center; gap:14px; margin-bottom:30px;
+            padding-bottom:20px; border-bottom:1px solid var(--panel-line);
+        }
+        .lab-header img{
+            width:56px; height:56px; border-radius:12px; object-fit:cover;
+            border:1px solid var(--cyan-dim);
+        }
+        .lab-header .brand-text h1{
+            font-size:20px; color:var(--text-bright); font-weight:700;
+        }
+        .lab-header .brand-text .accent{color:var(--cyan); font-family:var(--mono);}
+        .lab-header .brand-text p{
+            font-size:13px; color:var(--text-dim); font-family:var(--mono);
+        }
+
+        /* ===== Warning Banner ===== */
+        .warning-banner{
+            display:flex; align-items:center; gap:12px;
+            background:rgba(226,92,92,0.08);
+            border:1px solid rgba(226,92,92,0.4);
+            border-right:4px solid var(--red);
+            border-radius:10px; padding:14px 18px; margin-bottom:24px;
+        }
+        .warning-banner .icon{
+            width:36px; height:36px; border-radius:8px; flex-shrink:0;
+            background:rgba(226,92,92,0.15); color:var(--red);
+            display:flex; align-items:center; justify-content:center;
+            font-size:20px; font-weight:700;
+        }
+        .warning-banner strong{color:var(--red); display:block; margin-bottom:2px;}
+        .warning-banner p{font-size:13px; color:var(--text-dim);}
+
+        /* ===== Main Card ===== */
+        .lab-card{
+            background:var(--panel);
+            border:1px solid var(--panel-line);
+            border-radius:var(--radius);
+            padding:30px;
+            margin-bottom:24px;
+        }
+        .lab-card h2{
+            color:var(--text-bright); font-size:22px; margin-bottom:10px;
+            display:flex; align-items:center; gap:10px;
+        }
+        .badge-vuln{
+            display:inline-block; background:var(--red); color:white;
+            padding:3px 10px; border-radius:20px; font-size:11px;
+            font-family:var(--mono); font-weight:700;
+        }
+        .badge-safe{
+            display:inline-block; background:var(--green); color:#04140a;
+            padding:3px 10px; border-radius:20px; font-size:11px;
+            font-family:var(--mono); font-weight:700;
+        }
+        .lab-card > p{
+            color:var(--text-dim); font-size:14px; margin-bottom:20px;
+        }
+
+        /* ===== Form ===== */
+        .vuln-form{
+            display:flex; gap:10px; margin:20px 0; flex-wrap:wrap;
+        }
+        .vuln-form input{
+            flex:1; min-width:250px;
+            padding:12px 16px;
+            background:var(--bg-soft);
+            border:1px solid var(--panel-line);
+            border-radius:8px;
+            color:var(--text-bright);
+            font-family:var(--mono);
+            font-size:13px;
+            transition:border-color .2s;
+        }
+        .vuln-form input:focus{
+            outline:none; border-color:var(--cyan);
+        }
+        .vuln-form input::placeholder{color:var(--text-dim);}
+        .vuln-form button{
+            padding:12px 28px; cursor:pointer;
+            background:var(--cyan); color:#04141a;
+            border:none; border-radius:8px;
+            font-family:var(--sans); font-weight:600; font-size:14px;
+            transition:transform .15s, box-shadow .15s;
+        }
+        .vuln-form button:hover{
+            transform:translateY(-2px);
+            box-shadow:0 8px 20px rgba(61,214,245,0.3);
+        }
+
+        /* ===== Result ===== */
+        .result{
+            margin-top:20px; padding:18px;
+            background:var(--bg-soft);
+            border-right:4px solid var(--cyan);
+            border-radius:8px;
+        }
+        .result .label{
+            font-family:var(--mono); font-size:11px; color:var(--cyan);
+            text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;
+        }
+        .result .output{
+            font-size:15px; color:var(--text-bright); word-break:break-word;
+        }
+
+        /* ===== Hints ===== */
+        .hints{
+            background:var(--bg-soft);
+            border:1px solid var(--panel-line);
+            border-right:4px solid var(--gold);
+            border-radius:8px;
+            padding:18px;
+            margin-top:20px;
+        }
+        .hints h3{
+            color:var(--gold); font-size:14px; margin-bottom:12px;
+            font-family:var(--mono); text-transform:uppercase;
+            letter-spacing:1px;
+        }
+        .hints ol{
+            padding-right:20px; color:var(--text); font-size:13.5px;
+        }
+        .hints li{margin-bottom:8px;}
+        code{
+            background:#0a0e16; color:var(--cyan);
+            padding:2px 8px; border-radius:4px;
+            font-family:var(--mono); font-size:12.5px;
+            border:1px solid var(--panel-line);
+            display:inline-block;
+            margin:2px 0;
+            word-break:break-all;
+        }
+
+        /* ===== Course Info Section ===== */
+        .course-info{
+            background:linear-gradient(180deg, var(--panel), var(--bg-soft));
+            border:1px solid var(--cyan-dim);
+            border-radius:var(--radius);
+            padding:30px;
+            margin-top:30px;
+        }
+        .course-info .eyebrow{
+            font-family:var(--mono); font-size:12px; color:var(--cyan);
+            letter-spacing:1px; margin-bottom:8px;
+        }
+        .course-info .eyebrow::before{content:'$ '; color:var(--gold);}
+        .course-info h2{
+            color:var(--text-bright); font-size:24px; margin-bottom:12px;
+        }
+        .course-info > p{
+            color:var(--text-dim); font-size:14px; margin-bottom:22px;
+        }
+        .stats-row{
+            display:grid; grid-template-columns:repeat(auto-fit, minmax(120px,1fr));
+            gap:14px; margin-bottom:26px;
+        }
+        .stat-box{
+            background:var(--bg); border:1px solid var(--panel-line);
+            border-radius:10px; padding:16px; text-align:center;
+        }
+        .stat-box .num{
+            font-family:var(--mono); font-size:26px; font-weight:700;
+            color:var(--cyan); display:block;
+        }
+        .stat-box .lbl{
+            font-size:11.5px; color:var(--text-dim); margin-top:4px;
+        }
+
+        .levels-list{
+            display:flex; flex-direction:column; gap:10px;
+        }
+        .level-item{
+            display:flex; align-items:center; gap:14px;
+            background:var(--bg); border:1px solid var(--panel-line);
+            border-radius:10px; padding:14px 18px;
+            transition:border-color .2s;
+        }
+        .level-item:hover{border-color:var(--cyan-dim);}
+        .level-item .num{
+            width:36px; height:36px; border-radius:8px; flex-shrink:0;
+            background:rgba(61,214,245,0.1); color:var(--cyan);
+            display:flex; align-items:center; justify-content:center;
+            font-family:var(--mono); font-weight:700; font-size:14px;
+        }
+        .level-item.optional .num{
+            background:rgba(232,179,57,0.1); color:var(--gold);
+        }
+        .level-item .info{flex:1;}
+        .level-item .info .t{
+            color:var(--text-bright); font-weight:600; font-size:14.5px;
+        }
+        .level-item .info .s{
+            color:var(--text-dim); font-size:12.5px; font-family:var(--mono);
+            margin-top:2px;
+        }
+        .level-item .count{
+            font-family:var(--mono); font-size:12px; color:var(--text-dim);
+            white-space:nowrap;
+        }
+
+        /* ===== CTA ===== */
+        .cta-box{
+            text-align:center; margin-top:30px;
+            padding:24px;
+            background:var(--bg);
+            border:1px dashed var(--cyan-dim);
+            border-radius:12px;
+        }
+        .cta-box p{
+            color:var(--text-dim); font-size:13.5px; margin-bottom:14px;
+        }
+        .cta-btn{
+            display:inline-block;
+            padding:12px 28px;
+            background:var(--cyan); color:#04141a;
+            border-radius:8px; font-weight:600; font-size:14px;
+            text-decoration:none;
+            transition:transform .15s, box-shadow .15s;
+            font-family:var(--sans);
+        }
+        .cta-btn:hover{
+            transform:translateY(-2px);
+            box-shadow:0 8px 20px rgba(61,214,245,0.3);
+        }
+
+        /* ===== Footer ===== */
+        .footer{
+            text-align:center; padding:30px 0 10px;
+            color:var(--text-dim); font-size:12.5px;
+            font-family:var(--mono);
+            border-top:1px solid var(--panel-line);
+            margin-top:40px;
+        }
+        .footer .contact{
+            display:flex; gap:16px; justify-content:center;
+            margin-bottom:12px; flex-wrap:wrap;
+        }
+        .footer .contact a{
+            color:var(--cyan); text-decoration:none;
+            transition:color .2s;
+        }
+        .footer .contact a:hover{color:var(--gold);}
+
+        @media(max-width:600px){
+            .lab-header{flex-direction:column; text-align:center;}
+            .vuln-form{flex-direction:column;}
+            .vuln-form button{width:100%;}
+        }
+    </style>
+</head>
+<body>
+<div class="noise"></div>
+
+<div class="container">
+
+    <!-- ===== Header ===== -->
+    <div class="lab-header">
+        <img src="https://a.top4top.io/p_38240pdi01.jpg" alt="شعار Programming & Security">
+        <div class="brand-text">
+            <h1>Programming <span class="accent">&amp;</span> Security</h1>
+            <p>// XSS_Lab_v1.0 — معسكر تدريبي</p>
+        </div>
+    </div>
+
+    <!-- ===== Warning Banner ===== -->
+    <div class="warning-banner">
+        <div class="icon">!</div>
+        <div>
+            <strong>⚠️ تنبيه: بيئة تعليمية مصابة عمداً</strong>
+            <p>هذا المختبر جزء من معسكر Programming & Security. الثغرة موجودة بقصد لأغراض تعليمية فقط. لا تستخدم هذه التقنيات على أي نظام بدون إذن كتابي.</p>
+        </div>
+    </div>
+
+    <!-- ===== Lab Card ===== -->
+    <div class="lab-card">
+        <h2>
+            مختبر XSS التعليمي
+            <span class="badge-vuln">مصاب عمداً</span>
+        </h2>
+        <p>
+            هذا المختبر يوضح ثغرة <strong>Reflected XSS</strong> عملياً. اكتب أي شيء في الحقل وشاهد كيف يتعامل الموقع مع المدخلات.
+            الهدف: تفهم كيف تنفّذ الثغرة، وكيف تسرق الكوكيز، وبعدها كيف تحمي موقعك منها.
+        </p>
+
+        <form class="vuln-form" method="POST">
+            <input type="text" name="user_input" placeholder="اكتب هنا" autocomplete="off" dir='ltr'>
+            <button type="submit">إرسال</button>
+        </form>
+
+        {% if name %}
+        <div class="result">
+            <div class="label">// output</div>
+            <div class="output">{{ name | safe }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ===== Course Info ===== -->
+    
+
+    <!-- ===== Footer ===== -->
+    <div class="footer">
+        <div class="contact">
+            <a href="https://mohammedhamzapr.github.io/personal/" target="_blank" rel="noopener noreferrer">🌐 الموقع الشخصي</a><pr>
+            <a href="https://t.me/lw_w7" target="_blank" rel="noopener noreferrer"><span>📱 Telegram: @lw_w7</span>
+        </div>
+        <p>تطوير: محمد حمزة — Programming &amp; Security © 2025</p>
+    </div>
+
+</div>
+</body>
+</html>
